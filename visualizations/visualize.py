@@ -746,9 +746,8 @@ def fig_metric_maps(df):
         return out
     A_s, A_l = arrs(hidx(h_short)), arrs(hidx(h_long))
 
-    cols = [("IA", "IA", "RdYlGn"), ("R2", "R²", "RdYlGn"),
-            ("RMSE", "RMSE (µg/m³)", "YlOrRd"), ("MAPE", "MAPE (%)", "YlOrRd")]
-    letters = "abcdefgh"
+    metrics = [("IA", "IA", "RdYlGn"), ("R2", "R²", "RdYlGn"),
+               ("RMSE", "RMSE", "YlOrRd"), ("MAPE", "MAPE (%)", "YlOrRd")]
     pad = 0.015
     xlim = (lon.min() - pad, lon.max() + pad)
     ylim = (lat.min() - pad, lat.max() + pad)
@@ -757,47 +756,41 @@ def fig_metric_maps(df):
         xlim = (min(xlim[0], bx[0]), max(xlim[1], bx[2]))
         ylim = (min(ylim[0], bx[1]), max(ylim[1], bx[3]))
 
-    fig = plt.figure(figsize=(15, 11))
-    gs = gridspec.GridSpec(3, 4, height_ratios=[1, 1, 1], hspace=0.32, wspace=0.32)
-
-    def draw(ax, vals, cmap, vmin, vmax, title):
-        if boundary is not None:
-            boundary.plot(ax=ax, facecolor="#f4f4f4", edgecolor="#555", linewidth=0.7, zorder=1)
-        sc = ax.scatter(lon, lat, c=vals, cmap=cmap, vmin=vmin, vmax=vmax,
-                        s=190, edgecolor="k", linewidth=0.8, zorder=5)
-        ax.set_aspect("equal"); ax.set_xlim(xlim); ax.set_ylim(ylim)
-        ax.set_title(title, fontsize=10)
-        ax.tick_params(labelsize=7); ax.grid(alpha=0.25)
-        return sc
-
-    for c, (key, lab, cmap) in enumerate(cols):
+    # shared colour range per metric across both horizons
+    vr = {}
+    for key, _, _ in metrics:
         both = np.concatenate([A_s[key], A_l[key]])
         both = both[~np.isnan(both)]
-        vmin, vmax = float(np.nanmin(both)), float(np.nanmax(both))
-        ax0 = fig.add_subplot(gs[0, c])
-        draw(ax0, A_s[key], cmap, vmin, vmax, f"({letters[c]}) {lab} at T+{h_short}h")
-        ax1 = fig.add_subplot(gs[1, c])
-        sc = draw(ax1, A_l[key], cmap, vmin, vmax, f"({letters[c+4]}) {lab} at T+{h_long}h")
-        cb = fig.colorbar(sc, ax=[ax0, ax1], fraction=0.046, pad=0.02, location="right")
-        cb.ax.tick_params(labelsize=7)
+        vr[key] = (float(both.min()), float(both.max()))
 
-    # (i) observed mean PM2.5, centered
-    axc = fig.add_subplot(gs[2, 1:3])
-    if boundary is not None:
-        boundary.plot(ax=axc, facecolor="#f4f4f4", edgecolor="#555", linewidth=0.7, zorder=1)
-    sc = axc.scatter(lon, lat, c=obs_pm, cmap="Spectral_r", s=240,
-                     edgecolor="k", linewidth=0.9, zorder=5)
-    for s, x, y in zip(stations, lon, lat):
-        axc.annotate(s.replace("_", " "), (x, y), fontsize=7, xytext=(5, 4),
-                     textcoords="offset points")
-    axc.set_aspect("equal"); axc.set_xlim(xlim); axc.set_ylim(ylim)
-    axc.set_title("(i) Observed mean PM$_{2.5}$"); axc.tick_params(labelsize=7)
-    axc.grid(alpha=0.25)
-    fig.colorbar(sc, ax=axc, fraction=0.046, pad=0.02, label="PM$_{2.5}$ (µg/m³)")
+    # ordered, fully-filled 3x3 panel list (8 metric maps + observed mean)
+    panels = []
+    for key, lab, cmap in metrics:
+        panels.append((A_s[key], cmap, vr[key][0], vr[key][1], f"{lab}, T+{h_short}h"))
+    for key, lab, cmap in metrics:
+        panels.append((A_l[key], cmap, vr[key][0], vr[key][1], f"{lab}, T+{h_long}h"))
+    panels.append((obs_pm, "Spectral_r", float(obs_pm.min()), float(obs_pm.max()),
+                   "Obs. mean PM$_{2.5}$"))
 
+    letters = "abcdefghi"
+    fig, axes = plt.subplots(3, 3, figsize=(10.5, 9.6))
+    axes = axes.ravel()
+    for idx, (vals, cmap, vmin, vmax, title) in enumerate(panels):
+        ax = axes[idx]
+        if boundary is not None:
+            boundary.plot(ax=ax, facecolor="#f4f4f4", edgecolor="#555",
+                          linewidth=0.6, zorder=1)
+        sc = ax.scatter(lon, lat, c=vals, cmap=cmap, vmin=vmin, vmax=vmax,
+                        s=140, edgecolor="k", linewidth=0.7, zorder=5)
+        ax.set_aspect("equal"); ax.set_xlim(xlim); ax.set_ylim(ylim)
+        ax.set_title(f"({letters[idx]}) {title}", fontsize=9)
+        ax.tick_params(labelsize=6); ax.grid(alpha=0.2)
+        cb = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.02)
+        cb.ax.tick_params(labelsize=6)
     fig.suptitle("GNN-LSTM per-station skill across Kolkata "
-                 f"(top: T+{h_short}h, middle: T+{h_long}h)",
-                 fontsize=14, fontweight="bold", y=0.93)
+                 f"(T+{h_short} h and T+{h_long} h)",
+                 fontsize=13, fontweight="bold", y=0.995)
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
     _save(fig, "F15_metric_maps", tight=False)
 
 
