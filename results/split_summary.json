@@ -1,0 +1,33 @@
+{
+  "test_windows": 3347,
+  "test_seasons": [
+    "Monsoon",
+    "Post-monsoon",
+    "Pre-monsoon",
+    "Winter"
+  ],
+  "test_season_window_counts": {
+    "Pre-monsoon": 1301,
+    "Monsoon": 794,
+    "Post-monsoon": 626,
+    "Winter": 626
+  },
+  "test_stations_with_targets": [
+    "ballygunge",
+    "bidhannagar",
+    "fort_william",
+    "jadavpur",
+    "rabindra_bharati",
+    "rabindra_sarobar",
+    "victoria_memorial"
+  ],
+  "n_test_stations": 7,
+  "block_days": 15,
+  "split_cycle": [
+    "train",
+    "train",
+    "train",
+    "val",
+    "test"
+  ]
+}
